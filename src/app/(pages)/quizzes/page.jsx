@@ -17,6 +17,7 @@ import LoaderForQuestions from "@/app/_components/quiz_Components/LoaderForQuest
 import ProgressBar from "@/app/_components/quiz_Components/ProgressBar";
 import CustomTopicInputModal from "@/app/_components/quiz_Components/CustomTopicInputModal";
 import generatePrompt from "@/app/_components/quiz_Components/Prompt";
+import QualityMetricsVisualizer from "@/app/_components/quiz_Components/QualityMetricsVisualizer";
 const ShowQuestions = lazy(() => import("@quizComponents/ShowQuestions"));
 const Results = lazy(() => import("@quizComponents/Results"));
 const QuizConfig = lazy(() => import("@quizComponents/QuizConfig"));
@@ -57,6 +58,7 @@ export default function Home() {
   const [loadingCustomTopics, setLoadingCustomTopics] = useState(false);
   const [loadingSubjects, setLoadingSubjects] = useState(false);
   const [loadingModules, setLoadingModules] = useState(false);
+  const [showMetrics, setShowMetrics] = useState(false);
   const fetchQuizStats = useCallback(async () => {
     try {
       const { data, error } = await supabase.from("quiz_data").select("*");
@@ -239,6 +241,7 @@ export default function Home() {
     try {
       setLoading(true);
       setShowResults(false);
+      setShowMetrics(false);
       const genAI = new GoogleGenerativeAI(
         process.env.NEXT_PUBLIC_GEMINI_API_KEY
       );
@@ -251,6 +254,12 @@ export default function Home() {
       const result = await model.generateContent(prompt);
       const parsedData = JSON.parse(result.response.text());
       // console.log(parsedData);
+      const hasQualityMetrics = parsedData[0] && parsedData[0].quality_metrics;
+
+      // Log quality metrics for debugging
+      if (hasQualityMetrics) {
+        console.log("Quality metrics received:", parsedData[0].quality_metrics);
+      }
       const shuffledQuestions = shuffleArray(parsedData);
       const questionsWithShuffledOptions = shuffledQuestions.map((question) => {
         const allOptions = shuffleArray([
@@ -286,6 +295,7 @@ export default function Home() {
     try {
       setLoading(true);
       setShowResults(false);
+      setShowMetrics(false);
       const genAI = new GoogleGenerativeAI(
         process.env.NEXT_PUBLIC_GEMINI_API_KEY
       );
@@ -333,7 +343,7 @@ export default function Home() {
     }
 
     setShowResults(true);
-
+    setShowMetrics(true);
     // Insert the quiz data into Supabase
     const { data, error } = await supabase
       .from("quiz_data")
@@ -385,6 +395,7 @@ export default function Home() {
     loadingModules,
     setShowCreateNewQuiz,
   };
+  const hasQualityMetrics = questions.length > 0 && questions[0]?.quality_metrics;
 
   return (
     <div className="container-fluid py-4">
@@ -394,6 +405,21 @@ export default function Home() {
           <div className="card shadow-sm p-3">
             {questions.length > 0 && <COChart questions={questions} />}
             <QuizConfig {...quizConfigProps} />
+            
+            {hasQualityMetrics && (
+              <div className="mt-3 text-center">
+                <button
+                  className={`w-100 btn ${
+                    showMetrics ? "btn-dark" : "btn-outline-dark"
+                  } btn-sm`}
+                  onClick={() => setShowMetrics(!showMetrics)}
+                >
+                  {showMetrics
+                    ? "Hide Quality Metrics"
+                    : "Show Quality Metrics"}
+                </button>
+              </div>
+            )}
 
             {/* Show quiz statistics if available */}
             {quizStats && (
@@ -448,6 +474,11 @@ export default function Home() {
                     setUserAnswers={setUserAnswers}
                   />
                 </>
+              )}
+              {showMetrics && hasQualityMetrics && (
+                <div className="mt-4">
+                  <QualityMetricsVisualizer questions={questions} />
+                </div>
               )}
             </Suspense>
           </div>
