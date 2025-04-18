@@ -1,5 +1,6 @@
 import { GenerateQuizBtn, ToggleCheckBtn } from "./Buttons";
 import Link from "next/link";
+import ModelSelector from "./ModelSelector";
 export default function QuizConfig({
   semesters,
   subjects,
@@ -23,6 +24,8 @@ export default function QuizConfig({
   loadingSubjects,
   loadingModules,
   setShowCreateNewQuiz,
+  selectedModel,
+  setSelectedModel,
 }) {
   const handleModuleChange = (module) => {
     const isSelected = selectedModules.includes(module);
@@ -35,7 +38,10 @@ export default function QuizConfig({
   return (
     <div className="p-4 border rounded shadow-sm">
       <h4 className="text-center mb-4">Configure Quiz</h4>
-
+      <ModelSelector
+        selectedModel={selectedModel}
+        setSelectedModel={setSelectedModel}
+      />
       <div className="mb-3">
         <label htmlFor="semester" className="form-label">
           Semester:

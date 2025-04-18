@@ -10,6 +10,7 @@ import {
 const QualityMetricsVisualizer = ({ questions }) => {
   const [selectedView, setSelectedView] = useState('overview');
   const [selectedMetric, setSelectedMetric] = useState('content_validity');
+  const [showMetricInfo, setShowMetricInfo] = useState(null);
 
   // Initialize with empty arrays/objects to prevent conditionally calling hooks
   const hasData = questions && questions.length > 0;
@@ -125,11 +126,34 @@ const QualityMetricsVisualizer = ({ questions }) => {
     language_clarity: 'Language Clarity'
   };
 
+  // Descriptions for each metric
+  const metricDescriptions = {
+    content_validity: 'Measures how well the question aligns with the module content. Higher values indicate better alignment with teaching materials.',
+    difficulty_index: 'Predicted difficulty based on question complexity. Lower values (closer to 0) indicate harder questions, higher values (closer to 1) indicate easier questions.',
+    discrimination_index: 'How well the question might differentiate between high and low performers. Higher values indicate better ability to distinguish student knowledge levels.',
+    distractor_quality: 'Quality of incorrect options. Higher values indicate more plausible distractors that effectively test understanding.',
+    cognitive_complexity: 'Level of cognitive processing required. Higher values indicate more complex thinking needed to answer correctly.',
+    taxonomy_alignment: 'How well the question aligns with stated Bloom\'s taxonomy level. Higher values indicate better alignment with the intended cognitive level.',
+    course_outcome_alignment: 'How well the question aligns with the specified course outcome. Higher values indicate better coverage of course objectives.',
+    source_fidelity: 'How accurately the question reflects source material (notes/PDF). Higher values indicate questions that closely match provided materials.',
+    reliability_estimate: 'Estimated reliability of the question. Higher values suggest questions that consistently measure the intended knowledge.',
+    language_clarity: 'How clear and unambiguous the question wording is. Higher values indicate clearer questions that students can easily understand.'
+  };
+
   // Generate a mapping of all available metrics for the dropdown
   const metricOptions = Object.keys(questions[0].quality_metrics || {}).map(key => ({
     value: key,
     label: metricNames[key] || key.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
   }));
+  
+  // Handle toggling the metric info display
+  const toggleMetricInfo = (metric) => {
+    if (showMetricInfo === metric) {
+      setShowMetricInfo(null);
+    } else {
+      setShowMetricInfo(metric);
+    }
+  };
 
   return (
     <div className="quality-metrics-container">
@@ -300,31 +324,49 @@ const QualityMetricsVisualizer = ({ questions }) => {
         </div>
       </div>
 
-      {/* Summary card with metrics averages */}
+      {/* Enhanced Summary card with metrics averages and descriptions */}
       <div className="row mt-4">
         <div className="col-md-12">
           <div className="card">
             <div className="card-header bg-light">
               <h5 className="card-title mb-0">Quality Metrics Summary</h5>
+              <small className="text-muted">(Click on any metric to see its description)</small>
             </div>
             <div className="card-body">
               <div className="row">
                 {Object.entries(averageMetrics).map(([key, value]) => (
-                  <div key={key} className="col-md-3 mb-3">
-                    <div className="d-flex align-items-center">
-                      <div 
-                        style={{ 
-                          width: 16, 
-                          height: 16, 
-                          backgroundColor: COLORS[key] || '#8884d8', 
-                          marginRight: 8,
-                          borderRadius: '50%'
-                        }} 
-                      />
-                      <div>
-                        <div className="small text-muted">{metricNames[key] || key}</div>
-                        <div className="fw-bold">{value?.toFixed(2)}</div>
+                  <div key={key} className="col-md-4 mb-3">
+                    <div 
+                      className="metric-container p-3 border rounded cursor-pointer" 
+                      onClick={() => toggleMetricInfo(key)}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      <div className="d-flex align-items-center">
+                        <div 
+                          style={{ 
+                            width: 16, 
+                            height: 16, 
+                            backgroundColor: COLORS[key] || '#8884d8', 
+                            marginRight: 8,
+                            borderRadius: '50%'
+                          }} 
+                        />
+                        <div>
+                          <div className="small text-muted">{metricNames[key] || key}</div>
+                          <div className="fw-bold">{value?.toFixed(2)}</div>
+                        </div>
                       </div>
+                      
+                      {showMetricInfo === key && (
+                        <div className="mt-2 pt-2 border-top small">
+                          <p className="mb-0">{metricDescriptions[key]}</p>
+                          <div className="mt-1">
+                            <span className="badge bg-danger">0.0</span>
+                            <span className="mx-1">→</span>
+                            <span className="badge bg-success">1.0</span>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}

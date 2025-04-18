@@ -104,7 +104,6 @@ const generatePrompt = (props) => {
     Please provide the output strictly in JSON format without any markdown, text, or extra characters. Do not include code blocks or escape characters.
   `;
   }
-  console.log(prompt);
   return prompt;
 };
 

@@ -8,7 +8,6 @@ import {
   lazy,
   Suspense,
 } from "react";
-import { GoogleGenerativeAI } from "@google/generative-ai";
 import { supabase } from "@lib/supabaseClient";
 import LayoutContext from "@context/LayoutContext";
 import CreateQuiz from "@/app/_components/quiz_Components/CreateQuiz";
@@ -18,13 +17,13 @@ import ProgressBar from "@/app/_components/quiz_Components/ProgressBar";
 import CustomTopicInputModal from "@/app/_components/quiz_Components/CustomTopicInputModal";
 import generatePrompt from "@/app/_components/quiz_Components/Prompt";
 import QualityMetricsVisualizer from "@/app/_components/quiz_Components/QualityMetricsVisualizer";
+import { generateQuestions } from "@/app/_lib/aiService";
 const ShowQuestions = lazy(() => import("@quizComponents/ShowQuestions"));
 const Results = lazy(() => import("@quizComponents/Results"));
 const QuizConfig = lazy(() => import("@quizComponents/QuizConfig"));
 const Loader = lazy(() => import("@components/Loader"));
 const QuizStats = lazy(() => import("@quizComponents/QuizStats"));
 const QuizChart = lazy(() => import("@quizComponents/QuizChart"));
-
 const shuffleArray = (array) => {
   const arr = [...array];
   for (let i = arr.length - 1; i > 0; i--) {
@@ -59,6 +58,7 @@ export default function Home() {
   const [loadingSubjects, setLoadingSubjects] = useState(false);
   const [loadingModules, setLoadingModules] = useState(false);
   const [showMetrics, setShowMetrics] = useState(false);
+  const [selectedModel, setSelectedModel] = useState("gemini-1.5-flash");
   const fetchQuizStats = useCallback(async () => {
     try {
       const { data, error } = await supabase.from("quiz_data").select("*");
@@ -204,6 +204,7 @@ export default function Home() {
   const getResult = useCallback(async () => {
     setQuestions([]);
     setCurrentQuestionIndex(0);
+
     if (!selectedModules.length) {
       alert("Please select at least one module.");
       return;
@@ -215,7 +216,7 @@ export default function Home() {
       .in(
         "module_id",
         selectedModules.map((mod) => mod.id)
-      ); // Fetch topics by module IDs
+      );
 
     if (error) {
       console.error("Error fetching topics:", error);
@@ -227,8 +228,6 @@ export default function Home() {
       .map((topic) => topic.topic_content)
       .join(", ");
 
-    // handlePDFSubmit();
-
     const prompt = generatePrompt({
       customTopics,
       selectedModules,
@@ -238,28 +237,21 @@ export default function Home() {
       pdfSummary,
       NumberOfQuestions,
     });
+
     try {
       setLoading(true);
       setShowResults(false);
       setShowMetrics(false);
-      const genAI = new GoogleGenerativeAI(
-        process.env.NEXT_PUBLIC_GEMINI_API_KEY
-      );
-      const model = genAI.getGenerativeModel({
-        model: "gemini-1.5-flash",
-        generation_config: {
-          response_mime_type: "application/json",
-        },
-      });
-      const result = await model.generateContent(prompt);
-      const parsedData = JSON.parse(result.response.text());
-      // console.log(parsedData);
+
+      // Use the new AI service with selected model
+      const parsedData = await generateQuestions(prompt, selectedModel);
+
       const hasQualityMetrics = parsedData[0] && parsedData[0].quality_metrics;
 
-      // Log quality metrics for debugging
       if (hasQualityMetrics) {
         console.log("Quality metrics received:", parsedData[0].quality_metrics);
       }
+
       const shuffledQuestions = shuffleArray(parsedData);
       const questionsWithShuffledOptions = shuffledQuestions.map((question) => {
         const allOptions = shuffleArray([
@@ -281,8 +273,8 @@ export default function Home() {
     selectedModules,
     professorNotes,
     pdfSummary,
-    /* handlePDFSubmit, */
     selectedSubject.course_outcomes,
+    selectedModel,
   ]);
 
   const handleGenerateFromTopic = useCallback(async () => {
@@ -290,20 +282,18 @@ export default function Home() {
       alert("Please enter at least one topic.");
       return;
     }
+
     setLoadingCustomTopics(true);
     const prompt = generatePrompt({ customTopics, NumberOfQuestions });
+
     try {
       setLoading(true);
       setShowResults(false);
       setShowMetrics(false);
-      const genAI = new GoogleGenerativeAI(
-        process.env.NEXT_PUBLIC_GEMINI_API_KEY
-      );
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-      const result = await model.generateContent(prompt);
-      const parsedData = JSON.parse(
-        result.response.text().replace(/```json\n|\\n|```/g, "")
-      );
+
+      // Use the new AI service with selected model
+      const parsedData = await generateQuestions(prompt, selectedModel);
+
       setQuestions(
         shuffleArray(
           parsedData.map((question) => ({
@@ -327,7 +317,7 @@ export default function Home() {
       setShowTopicInput(false);
       setLoadingCustomTopics(false);
     }
-  }, [customTopics]);
+  }, [customTopics, selectedModel]); 
 
   const score = useMemo(() => {
     const correctAnswers = questions.map((q) => q.correct_answer);
@@ -394,8 +384,11 @@ export default function Home() {
     loadingSubjects,
     loadingModules,
     setShowCreateNewQuiz,
+    selectedModel,
+    setSelectedModel,
   };
-  const hasQualityMetrics = questions.length > 0 && questions[0]?.quality_metrics;
+  const hasQualityMetrics =
+    questions.length > 0 && questions[0]?.quality_metrics;
 
   return (
     <div className="container-fluid py-4">
@@ -405,7 +398,7 @@ export default function Home() {
           <div className="card shadow-sm p-3">
             {questions.length > 0 && <COChart questions={questions} />}
             <QuizConfig {...quizConfigProps} />
-            
+
             {hasQualityMetrics && (
               <div className="mt-3 text-center">
                 <button
