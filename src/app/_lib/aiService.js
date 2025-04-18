@@ -14,34 +14,6 @@ const initializeOpenAI = () => {
   });
 };
 
-const initializeHuggingFace = async (modelId, prompt) => {
-  // const HF_API_TOKEN = process.env.NEXT_PUBLIC_HUGGINGFACE_API_KEY;
-  const HF_API_TOKEN = "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";
-  const API_URL = `https://api-inference.huggingface.co/models/${modelId.replace('hf-', '')}`;
-
-  const response = await fetch(API_URL, {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${HF_API_TOKEN}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      inputs: prompt,
-    }),
-  });
-
-  if (!response.ok) throw new Error("Hugging Face API request failed");
-  const data = await response.json();
-  console.log(data);
-  // Handle text generation responses
-  if (Array.isArray(data) && data[0]?.generated_text) {
-    return JSON.parse(data[0].generated_text);
-  }
-
-  // Handle other formats as needed
-  return data;
-};
-
 // Main generation function
 export const generateQuestions = async (prompt, modelId) => {
   try {
@@ -81,10 +53,6 @@ export const generateQuestions = async (prompt, modelId) => {
       response = await openai.chat.completions.create(params);
       return JSON.parse(response.choices[0].message.content);
     } 
-    else if (modelId.startsWith('hf-')) {
-      // Hugging Face support
-      return await initializeHuggingFace(modelId, prompt);
-    }
 
     throw new Error("Unsupported model type");
   } catch (error) {
